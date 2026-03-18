@@ -1,5 +1,3 @@
-const fetch = require('node-fetch').default || require('node-fetch');
-
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -9,7 +7,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'API key não configurada' });
+  if (!apiKey) return res.status(500).json({ error: 'API key nao configurada' });
 
   try {
     let body = req.body;
