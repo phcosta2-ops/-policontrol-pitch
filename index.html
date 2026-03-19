@@ -355,7 +355,7 @@ ASSUNTO: [máx 50 chars]
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:prompt}]})
     });
     const data=await res.json();
-    if(data.error) throw new Error(data.error);
+    if(data.error) throw new Error(typeof data.error === "object" ? JSON.stringify(data.error) : data.error);
     const raw=data.content?.map(i=>i.text||'').join('')||'';
     pitchText=raw;
 
