@@ -12,9 +12,13 @@ module.exports = async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'API key nao configurada' });
 
   try {
-    let body = req.body || {};
-    if (typeof body === 'string') body = JSON.parse(body);
-    const payload = JSON.stringify(body);
+    // Lê o body manualmente do stream
+    const payload = await new Promise((resolve, reject) => {
+      let raw = '';
+      req.on('data', chunk => raw += chunk);
+      req.on('end', () => resolve(raw));
+      req.on('error', reject);
+    });
 
     const data = await new Promise((resolve, reject) => {
       const options = {
@@ -30,11 +34,11 @@ module.exports = async function handler(req, res) {
       };
 
       const request = https.request(options, (response) => {
-        let raw = '';
-        response.on('data', chunk => raw += chunk);
+        let result = '';
+        response.on('data', chunk => result += chunk);
         response.on('end', () => {
-          try { resolve(JSON.parse(raw)); }
-          catch (e) { reject(new Error('Resposta invalida: ' + raw.slice(0, 100))); }
+          try { resolve(JSON.parse(result)); }
+          catch (e) { reject(new Error(result.slice(0, 200))); }
         });
       });
 
