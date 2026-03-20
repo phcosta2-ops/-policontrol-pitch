@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PoliControl — Pitch SDR</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#08090d;--surf:#0f1117;--card:#141720;--bdr:#1f2433;--accent:#3b82f6;--accent2:#60a5fa;--gold:#f59e0b;--text:#e2e8f0;--muted:#4b5563;--success:#10b981;--danger:#f43f5e;--purple:#a78bfa;--teal:#2dd4bf;--orange:#fb923c;--green:#4ade80}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow:hidden;font-size:13px}
+  .hdr{height:56px;background:var(--surf);border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+  .logo-box{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#1d4ed8);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:white}
+  .logo-wrap{display:flex;align-items:center;gap:10px}
+  .logo-txt h1{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:-0.3px}
+  .logo-txt p{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px}
+  .hdr-stats{display:flex;gap:12px;align-items:center}
+  .stat-pill{font-size:11px;color:var(--muted)}
+  .stat-pill b{color:var(--gold)}
+  .danger-badge{font-size:11px;background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.3);color:var(--danger);padding:3px 10px;border-radius:12px}
+  .main{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 56px)}
+  .sidebar{background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden}
+  .sb-top{padding:12px;border-bottom:1px solid var(--bdr)}
+  .filters{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+  .fbtn{font-size:10px;padding:3px 8px;border-radius:10px;border:1px solid var(--bdr);cursor:pointer;font-family:inherit;font-weight:500;text-transform:uppercase;letter-spacing:.5px;background:transparent;color:var(--muted);transition:all .15s}
+  .fbtn.on{background:rgba(59,130,246,.15);border-color:var(--accent);color:var(--accent2)}
+  .srch{width:100%;background:var(--card);border:1px solid var(--bdr);border-radius:7px;padding:7px 11px;color:var(--text);font-size:12px;font-family:inherit;outline:none}
+  .srch:focus{border-color:var(--accent)}
+  .sb-count{font-size:10px;color:var(--muted);padding:6px 14px;border-bottom:1px solid var(--bdr);text-transform:uppercase;letter-spacing:1px}
+  .clist{overflow-y:auto;flex:1}
+  .clist::-webkit-scrollbar{width:3px}
+  .clist::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+  .ci{padding:9px 14px;cursor:pointer;border-left:2px solid transparent;border-bottom:1px solid rgba(255,255,255,.025);transition:all .12s}
+  .ci:hover{background:var(--card);border-left-color:var(--accent)}
+  .ci.on{background:rgba(59,130,246,.07);border-left-color:var(--accent)}
+  .ci-name{font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.3}
+  .ci-meta{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+  .ltv{font-size:11px;color:var(--gold);font-weight:600}
+  .seg{font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:600;text-transform:uppercase}
+  .seg-san{background:rgba(16,185,129,.12);color:#34d399}
+  .seg-pha{background:rgba(167,139,250,.12);color:#c4b5fd}
+  .seg-lab{background:rgba(245,158,11,.12);color:#fbbf24}
+  .nc-badge{font-size:9px;background:rgba(99,102,241,.15);color:#818cf8;padding:1px 5px;border-radius:3px;font-weight:700}
+  .panel{flex:1;overflow-y:auto;background:var(--bg)}
+  .panel::-webkit-scrollbar{width:3px}
+  .panel::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);gap:14px}
+  .empty-ico{width:64px;height:64px;background:var(--card);border:1px solid var(--bdr);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px}
+  .empty h3{font-family:'Syne',sans-serif;font-size:16px;color:var(--text);font-weight:600}
+  .empty p{font-size:12.5px;text-align:center;max-width:240px;line-height:1.7}
+  .dbody{padding:20px 28px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px}
+  .card-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:10px}
+  .prod-chip{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--accent2);margin-bottom:6px}
+  .strat-card{border-radius:10px;padding:14px 16px;border:1px solid}
+  .strat-card.vials{background:rgba(167,139,250,.05);border-color:rgba(167,139,250,.25)}
+  .strat-card.manut{background:rgba(251,146,60,.05);border-color:rgba(251,146,60,.25)}
+  .strat-card.consumo{background:rgba(74,222,128,.05);border-color:rgba(74,222,128,.25)}
+  .strat-card.expansion{background:rgba(96,165,250,.05);border-color:rgba(96,165,250,.25)}
+  .strat-card.micro{background:rgba(45,212,191,.05);border-color:rgba(45,212,191,.25)}
+  .strat-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:5px}
+  .vials .strat-label{color:var(--purple)}.manut .strat-label{color:var(--orange)}.consumo .strat-label{color:var(--green)}.expansion .strat-label{color:var(--accent2)}.micro .strat-label{color:var(--teal)}
+  .strat-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px}
+  .strat-rat{font-size:12px;color:#94a3b8;line-height:1.65;margin-bottom:10px}
+  .bullet{font-size:11.5px;color:var(--muted);padding-left:14px;position:relative;margin-bottom:4px;line-height:1.5}
+  .bullet::before{content:'→';position:absolute;left:0;font-size:10px}
+  .vials .bullet::before{color:var(--purple)}.manut .bullet::before{color:var(--orange)}.consumo .bullet::before{color:var(--green)}.expansion .bullet::before{color:var(--accent2)}.micro .bullet::before{color:var(--teal)}
+  .nc-alert{background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:12px 14px}
+  .nc-alert-title{font-size:11px;color:#818cf8;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+  .nc-alert-body{font-size:12px;color:#94a3b8}
+  .pitch-wrap{background:var(--card);border:1px solid var(--bdr);border-radius:10px;overflow:hidden}
+  .pitch-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(59,130,246,.05);border-bottom:1px solid var(--bdr)}
+  .pitch-hdr h3{font-family:'Syne',sans-serif;font-size:13px;font-weight:700}
+  .gen-btn{background:linear-gradient(135deg,var(--accent),#1d4ed8);color:white;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;transition:all .2s}
+  .gen-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(59,130,246,.35)}
+  .gen-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+  .pitch-body{padding:16px;min-height:80px}
+  .pitch-placeholder{color:var(--muted);font-size:12.5px;font-style:italic;text-align:center;padding:20px 0}
+  .dots{display:none;justify-content:center;gap:6px;padding:20px 0}
+  .dots.on{display:flex}
+  .dot{width:7px;height:7px;background:var(--accent);border-radius:50%;animation:bop 1.2s ease-in-out infinite}
+  .dot:nth-child(2){animation-delay:.2s}
+  .dot:nth-child(3){animation-delay:.4s}
+  @keyframes bop{0%,80%,100%{transform:scale(.6);opacity:.2}40%{transform:scale(1);opacity:1}}
+  .pitch-out{display:none}
+  .pitch-out.on{display:block}
+  .subj-box{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:7px;padding:10px 12px;margin-bottom:12px}
+  .subj-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);font-weight:700;margin-bottom:3px}
+  .subj-val{font-size:13.5px;color:var(--text);font-weight:600}
+  .pitch-text{white-space:pre-wrap;font-size:13px;line-height:1.8}
+  .pitch-foot{display:none;gap:8px;padding:10px 16px;border-top:1px solid var(--bdr)}
+  .pitch-foot.on{display:flex}
+  .act-btn{background:var(--surf);border:1px solid var(--bdr);color:var(--text);padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+  .act-btn:hover{border-color:var(--accent);color:var(--accent2)}
+  .act-btn.ok{color:var(--success);border-color:var(--success)}
+  .dh-card{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:18px 20px}
+  .dh-status{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .status-dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .dh-name{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:14px;line-height:1.2}
+  .stats-row{display:flex;gap:20px;flex-wrap:wrap}
+  .stat-item .lbl{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:500}
+  .stat-item .val{font-size:14px;font-weight:700}
+  .cr-row{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:5px}
+  .cr-name{font-weight:500}
+  .cr-email{color:var(--muted);font-size:11px}
+
+  /* PROSPECÇÃO IA */
+  .prosp-wrap{margin-top:0;background:#0f1a2e;border:1px solid #1e3a5f;border-radius:12px;overflow:hidden;}
+  .prosp-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #1e3a5f;}
+  .prosp-hdr h3{font-size:13px;font-weight:600;color:#93c5fd;margin:0;}
+  .prosp-btn{background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:opacity .2s;}
+  .prosp-btn:hover{opacity:.85;}
+  .prosp-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .prosp-body{padding:16px 18px;min-height:60px;}
+  .prosp-placeholder{font-size:12px;color:#4b6280;text-align:center;padding:12px 0;}
+  .prosp-loading{display:none;text-align:center;padding:16px;color:#60a5fa;font-size:12.5px;}
+  .contact-found{background:#0d2137;border:1px solid #1e3a5f;border-radius:8px;padding:12px 14px;margin-bottom:8px;}
+  .cf-name{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:3px;}
+  .cf-cargo{font-size:11.5px;color:#60a5fa;margin-bottom:5px;}
+  .cf-info{font-size:11px;color:#64748b;display:flex;flex-wrap:wrap;gap:8px;}
+  .cf-info a{color:#38bdf8;text-decoration:none;}
+  .cf-info a:hover{text-decoration:underline;}
+  .cf-source{font-size:10px;color:#334155;margin-top:4px;}
+  .prosp-disclaimer{font-size:10px;color:#334155;text-align:center;margin-top:10px;padding-top:10px;border-top:1px solid #1e3a5f;}
+  .prosp-copy-btn{display:block;width:100%;margin-top:10px;background:#1e3a5f;color:#93c5fd;border:none;border-radius:6px;padding:7px;font-size:11.5px;cursor:pointer;}
+  .prosp-copy-btn:hover{background:#1d4ed8;color:#fff;}
+
+</style>
+</head>
+<body>
+
+<div style="display:flex;flex-direction:column;height:100vh">
+<header class="hdr">
+  <div class="logo-wrap">
+    <div class="logo-box">PC</div>
+    <div class="logo-txt"><h1>PoliControl — Pitch SDR</h1><p>Motor de Estratégia · v3.0</p></div>
+  </div>
+  <div class="hdr-stats">
+    <span class="stat-pill">Clientes: <b id="totalCount">—</b></span>
+    <span class="stat-pill">LTV em risco: <b>R$ 26,9M</b></span>
+    <span class="danger-badge">🔴 Churn Priority</span>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="sidebar">
+    <div class="sb-top">
+      <div class="filters" id="filters">
+        <button class="fbtn on" onclick="setFilter('all',this)">Todos</button>
+        <button class="fbtn" onclick="setFilter('saneamento',this)">Saneamento</button>
+        <button class="fbtn" onclick="setFilter('pharma',this)">Farmacêutica</button>
+        <button class="fbtn" onclick="setFilter('lab',this)">Laboratório</button>
+        <button class="fbtn" onclick="setFilter('nocontact',this)" style="border-color:rgba(99,102,241,.4);color:#818cf8">❓ Sem Contato</button>
+      </div>
+      <input class="srch" id="srch" type="text" placeholder="Buscar cliente…" oninput="render()">
+    </div>
+    <div class="sb-count" id="sbCount"></div>
+    <div class="clist" id="cList"></div>
+  </aside>
+
+  <section class="panel" id="panel">
+    <div class="empty" id="emptyState">
+      <div class="empty-ico">🎯</div>
+      <h3>Selecione um cliente</h3>
+      <p>O motor analisa o histórico de compras e define a melhor estratégia — incluindo cross-sell de microbiologia.</p>
+    </div>
+    <div id="detail" style="display:none"></div>
+  </section>
+</div>
+</div>
+
+<script src="clients.js"></script>
+<script>
+// ─── STRATEGY ENGINE ────────────────────────────────────────────────────────────
+  function hasMicroPot(p){return Array.isArray(p)&&p.some(x=>/AP2000|TURBTRACK|DSNET|FLOCCONTROL|AQUACOLOR|COR 450|TURBIDIMETRO/.test(x));}
+  function hasMicroAlr(p){return Array.isArray(p)&&p.some(x=>/MPN|POLITRAY|POLI-SEALER|COLICONTROL|COLITAG/.test(x));}
+  function hasCalib(p)   {return Array.isArray(p)&&p.some(x=>/CALIBR|CERTIFICADO RBC/.test(x));}
+  function hasOnlineEq(p){return Array.isArray(p)&&p.some(x=>/TURBTRACK|DSNET|COR 450|ONLINE/.test(x));}
+  function hasETE(p)     {return Array.isArray(p)&&p.some(x=>/DQO|DBO|EFLUENTE|SENTRY|OD /.test(x));}
+
+  // Detecta subtipo de saneamento pelo nome do cliente
+  function clienteETA(n)  {return /ETA|SANEAMENTO|COPASA|CESAN|CASAL|CAESB|SABESP|SAAE|COPANOR|AGUAS DE|AGUA E ESGOTO|CASAN|DMAE|DEMAE|SAMAE|SIMAE|COMPANHIA.*SANEA/.test(n.toUpperCase());}
+  function clienteETE(n)  {return /ETE|EFLUENTE|INDUSTRIAL|FRIGORIFICO|FRIGOL|INDUSTRIA|PAPEL|QUIMICA|LATICINIO|ALIMENTOS|BEBIDAS/.test(n.toUpperCase());}
+  function clienteLabTer(n){return /LAB|ANALI|AMBIENTAL LTDA|CONTROLE DE QUALIDADE/.test(n.toUpperCase());}
+
+  function strategy(c){
+    // Guarda defensiva: garantir que products é sempre array
+    if(!Array.isArray(c.products)) c.products = c.products ? [String(c.products)] : [];
+    const seg = c.segment || 'lab';
+    const isPharma = seg === 'pharma';
+    const all = c.products.join('|').toUpperCase();
+    const nome = c.name.toUpperCase();
+    const crossM = hasMicroPot(c.products) && !hasMicroAlr(c.products) && !isPharma;
+    const isETA  = clienteETA(nome) || seg === 'saneamento';
+    const isETE  = clienteETE(nome) || hasETE(c.products);
+
+    // ── BLOCO PHARMA ──────────────────────────────────────────────────────────
+    if(isPharma){
+      const hasTOC = /TOC|M9 |860 |INNOVOX|DATAPRO|CHECKPOINT|ECLIPSE/.test(all);
+      const hasMnt = /MANUTENC/.test(all);
+      if(hasTOC && hasMnt) return {type:'vials',icon:'💜',label:'Vials Certificados + Padrões TOC',title:'TOC + manutenção → consumíveis certificados',rat:'Reutilização de vials ou genéricos introduz carbon de background → OOS → CAPA. Vials Sievers Certified <10 ppb (ISO 9001, COA USP). DUCT Vials fazem TOC + condutividade simultâneos (USP <643>/<645>).',bullets:['Sievers Certified Vials <10 ppb — COA rastreável à USP por lote','DUCT Vials: TOC + condutividade simultâneos em único frasco','Padrões M9 Cal & Ver rastreáveis à USP','Cartuchos originais Oxidizer/Acid — terceiros invalidam a validação','🆕 ColiControl24: coliformes em água purificada — método rastreável e auditável']};
+      if(hasTOC && !hasMnt) return {type:'manut',icon:'🟠',label:'Manutenção Preventiva + IQ/OQ/PQ',title:'TOC sem manutenção Policontrol → risco regulatório',rat:'Peças não originais → deriva analítica → falsa liberação de WFI, violação RDC 658/2022. Policontrol: distribuidor oficial Sievers, peças com COA, suporte IQ/OQ/PQ.',bullets:['Distribuidor oficial Sievers — peças com COA rastreável','PM anual + Resin Bed + cartuchos originais + verificação de performance','Qualificação IQ/OQ/PQ — suporte para auditorias ANVISA e FDA','Pacote PM + consumíveis: previsibilidade de custo e conformidade']};
+      if(!hasTOC && hasMnt) return {type:'manut',icon:'🟠',label:'Consumíveis + Cross-sell Farma',title:'Manutenção → ampliar consumíveis',rat:'Cliente já confia na Policontrol. Ampliar com fornecimento completo de consumíveis TOC e microbiologia.',bullets:['Acid/Oxidizer Cartridge originais com cronograma de substituição','Vials <10 ppb — reutilização é risco de OOS','🆕 ColiControl24: coliformes em água purificada sem preparo manual','Pacote anual PM + consumíveis']};
+      return {type:'vials',icon:'💜',label:'Consumíveis TOC Certificados',title:'Farma → reposição e vials certificados',rat:'Cadência de reposição e vials certificados para conformidade USP/ANVISA.',bullets:['Vials <10 ppb produzidos em cleanroom, certificados por lote','DUCT Vials para TOC + condutividade simultâneos','🆕 ColiControl24 + Cartela MPN — coliformes rastreáveis','Padrões Cal & Ver rastreáveis à USP']};
+    }
+
+    // ── BLOCO NÃO-PHARMA ──────────────────────────────────────────────────────
+    const hasInst  = /AP2000|TURBIDIMETRO|AQUACOLOR|FLOCCONTROL|MPN READER|TURBTRACK|DSNET|COR 450|NESSLERQUANTI|AQUAPRO|COLORIMETRO|FOTOCOLORIM/.test(all);
+    const hasReag  = /REAGENTE|REAG\.|DPD|SPADNS|CLS1|CLS2|CLL1|CLL2|VISODISC|PASTILHA|TISSAB|FLSP/.test(all);
+    const hasMnt   = /MANUTENC/.test(all);
+    const hasOnline= /TURBTRACK|DSNET|COR 450/.test(all);
+    const hasMPN   = hasMicroAlr(c.products);
+    const hasCalibr= hasCalib(c.products);
+    const hasCL17  = /CL.17|CL17/.test(all);
+    const hasDQO   = /DQO/.test(all);
+
+    // ★ Instrumento + calibração → reagentes/consumíveis/serviços + lançamentos
+    if(hasInst && hasCalibr){
+      const bullets = [];
+      if(/AP2000|TURBIDIMETRO/.test(all)) bullets.push('Padrões StabGel formazina (validade ~6 meses) — verifique vencimento');
+      if(/AQUACOLOR|FOTOCOLORIM/.test(all)) bullets.push('Reagentes CLS1/CLS2 e DPD Cloro — degradam após abertura');
+      if(/AQUACOLOR FLUOR/.test(all)) bullets.push('Reagentes SPADNS fluoreto — prazo crítico');
+      if(/FLOCCONTROL/.test(all)) bullets.push('Correia Floccontrol III/IV — peça de desgaste semestral');
+      bullets.push('Calibração RBC anual — requisito Portaria MS 888/2021');
+      bullets.push('Manutenção preventiva Policontrol — peças originais e COA');
+      if(isETA) bullets.push('🆕 SCM Monitor Coagulantes — automatiza dosagem, reduz até 37% custo com coagulante');
+      if(isETA) bullets.push('🆕 Monitor Online de Cloro — dosagem automática com reagentes nacionais Policontrol');
+      if(isETE || hasDQO) bullets.push('🆕 DQO em cubetas nacional — pré-pronto, resultado em 15 min, sem manuseio de ácido');
+      if(crossM) bullets.push('🆕 ColiControl24 + Leitora MPN — coliformes rastreáveis, laudo auditável');
+      return {type:'consumo',icon:'🟢',label:'Reagentes + Serviços + Lançamentos',title:'Instrumento calibrado → reagentes vencendo + novidades 2025',rat:'Quem calibra se preocupa com qualidade analítica. Reagentes e padrões têm validade curta — vencimento silencioso invalida laudos. Policontrol garante o ciclo completo: instrumento, reagente, calibração, serviço e agora automação online.',bullets};
+    }
+
+    // Instrumento sem reagentes → consumíveis urgente
+    if(hasInst && !hasReag){
+      const bullets = [
+        /AP2000|TURBIDIMETRO/.test(all)?'Padrões StabGel NTU (validade ~6 meses) — obrigatório para conformidade':null,
+        /AP2000|TURBIDIMETRO/.test(all)?'Cubetas AP2000 — riscam após ~6 meses':null,
+        /AQUACOLOR CLORO|FOTOCOLORIM/.test(all)?'Reagentes CLS1/CLS2 ou DPD — validade curta após abertura':null,
+        /AQUACOLOR FLUOR/.test(all)?'Reagentes SPADNS fluoreto — prazo curto':null,
+        /FLOCCONTROL/.test(all)?'Correia Floccontrol III/IV — peça de desgaste semestral':null,
+        'Calibração RBC — requisito legal Portaria MS 888/2021',
+        isETA?'🆕 Reagente CL17 nacional — se tiver Hach CL17, mesmo desempenho com custo menor':null,
+        isETA?'🆕 SCM Monitor Coagulantes — reduz até 37% gasto com coagulante':null,
+        crossM?'🆕 ColiControl24 + Cartela MPN — coliformes exigência Portaria MS 888/2021':null
+      ].filter(Boolean);
+      return {type:'consumo',icon:'🟢',label:'Consumíveis + Calibração + Novidades',title:'Instrumentos sem consumíveis → repor urgente',rat:'Para dados válidos ao MS (Portaria 888/2021) instrumento precisa de padrões RBC no prazo e reagentes dentro da validade.',bullets};
+    }
+
+    // Online sem portátil → equipamento bancada + lançamentos online
+    if(hasOnline && !hasInst){
+      const bullets = [
+        'Turbidímetro AP2000 WT/IR IP67 — confirmação laboratorial para laudos válidos',
+        'AquaColor Cloro, Fluor, Cor RGB para análises complementares',
+        'Reagentes DPD, SPADNS e padrões StabGel (~6 meses)',
+        isETA?'🆕 Cor Online — monitora cor continuamente, alerta antes de chegar ao filtro':null,
+        isETA?'🆕 SCM Monitor Coagulantes — automatiza dosagem, reduz até 37% custo com coagulante':null,
+        crossM?'🆕 ColiControl24 + Leitora MPN — coliformes/E.coli, laudo rastreável':null
+      ].filter(Boolean);
+      return {type:'expansion',icon:'🔵',label:'Online → Laboratório + Automação',title:'Online instalado → bancada + novidades 2025',rat:'Clientes com online precisam de bancada para confirmar leituras e emitir laudos válidos ao MS. 2025 traz automação completa para ETA.',bullets};
+    }
+
+    // ETE com DQO → lançamentos específicos ETE
+    if(isETE && (hasDQO || hasReag)){
+      const bullets = [
+        '🆕 Sentry Monitor DBO — único sensor contínuo de DBO em tempo real do mundo, bio-eletrodo sem reagentes',
+        '🆕 DQO em cubetas nacional — pré-pronto, seguro, resultado em 15 min, sem ácido concentrado',
+        isETA||hasCL17?'🆕 Reagente CL17 nacional — se tiver Hach CL17, custo menor':null,
+        'OD online — controle de aeração em lodos ativados, otimiza energia',
+        'pH/ORP/Redox online — controle de processo em tempo real',
+        'Turbidez/SS online — conformidade com padrão de lançamento',
+        crossM?'🆕 ColiControl24 + Leitora MPN — coliformes rastreáveis':null
+      ].filter(Boolean);
+      return {type:'expansion',icon:'🔵',label:'ETE → Automação + Lançamentos 2025',title:'ETE/Efluentes → novos sensores online e DQO nacional',rat:'Para ETE: Sentry é o único monitor de DBO biológica em tempo real do mundo — age antes do problema chegar ao tratamento. DQO em cubetas nacional elimina manuseio de ácido e reduz custo por análise.',bullets};
+    }
+
+    // Instrumento + reagentes, sem micro → cross-sell microbiologia + lançamentos
+    if(hasInst && hasReag && !hasMPN && crossM){
+      const bullets = [
+        '🆕 ColiControl24 — meio de cultura pronto, sem preparo manual, incubação 24h',
+        '🆕 Leitora MPN automática — única no mundo, laudo rastreável e auditável, ideal ISO 17025',
+        'Cartela MPN Politray-E Estéreis 97 poços — substitui tubos múltiplos',
+        'Poli-Sealer — seladora exclusiva Policontrol',
+        isETA?'🆕 SCM Monitor Coagulantes — automatiza dosagem, reduz até 37% custo com coagulante':null,
+        isETA?'🆕 Monitor Online de Cloro — dosagem automática, reagentes nacionais Policontrol':null
+      ].filter(Boolean);
+      return {type:'micro',icon:'🧫',label:'Cross-sell Microbiologia + Automação',title:'Base consolidada → microbiologia automatizada 2025',rat:'ColiControl24 + Leitora MPN automática é a combinação mais moderna do mercado. Leitora única no mundo — resultado rastreável e auditável. Exigência Portaria MS 888/2021.',bullets};
+    }
+
+    // Base consolidada → expansão + lançamentos
+    if(hasInst && hasReag){
+      const bullets = [
+        /TURBIDIMETRO/.test(all)?'Tem turbidímetro → AquaColor Cloro, Fluor e pHmetro':null,
+        /AQUACOLOR/.test(all)?'Tem colorímetro → turbidímetro AP2000 e medidor de pH':null,
+        'Reposição programada de reagentes e padrões trimestral',
+        'Calibração RBC anual — requisito Portaria MS 888/2021',
+        isETA?'🆕 SCM Monitor Coagulantes — reduz até 37% custo com coagulante':null,
+        isETA?'🆕 Cor Online — monitoramento automático de cor do manancial':null,
+        isETA?'🆕 Monitor Online de Cloro — reagentes nacionais Policontrol':null,
+        isETA&&hasCL17?'🆕 Reagente CL17 nacional — mesmo desempenho, custo menor':null,
+        !hasMPN?'🆕 ColiControl24 + Leitora MPN — coliformes auditáveis':null
+      ].filter(Boolean);
+      return {type:'expansion',icon:'🔵',label:'Expansão + Lançamentos 2025–2026',title:'Cliente consolidado → automação e novidades',rat:'Base sólida. 2025–2026 traz 7 lançamentos Policontrol para saneamento e lab — automação de ETA, microbiologia modernizada e reagentes nacionais mais competitivos.',bullets};
+    }
+
+    // Só reagentes → upsell instrumento + lançamentos
+    if(hasReag && !hasInst){
+      return {type:'consumo',icon:'🟢',label:'Reposição + Upsell Instrumento',title:'Reagentes sem instrumento → instrumento próprio',rat:'Compra reagentes mas usa instrumentos de terceiros. Rastreabilidade com instrumento próprio.',bullets:[
+        'AquaColor Cloro FE IP67 — rastreabilidade e independência de terceiros',
+        'Kit SMART Cloro/pH — padronizado, menor erro operacional',
+        'Calibração RBC para instrumentos em uso',
+        isETE?'🆕 DQO em cubetas nacional — pré-pronto, resultado 15 min, sem manuseio de ácido':null,
+        crossM?'🆕 ColiControl24 + Leitora MPN — fecha o ciclo de análise':null
+      ].filter(Boolean)};
+    }
+
+    // Já tem micro → reposição + novidades
+    if(hasMPN){
+      return {type:'micro',icon:'🧫',label:'Reposição Microbiologia + Novidades',title:'Microbiologia ativa → evoluir para ColiControl24',rat:'Já usa microbiologia. Evoluir para ColiControl24 + Leitora MPN automática: mais rápido, rastreável, sem preparo manual.',bullets:[
+        '🆕 ColiControl24 — meio de cultura pronto, sem preparo manual, resultado 24h',
+        '🆕 Leitora MPN automática — única no mundo, laudo rastreável, ISO 17025',
+        'Politray-E Cartelas Estéreis 97 poços — alta rotatividade mensal',
+        'Borracha Poli Tray — peça de desgaste da seladora',
+        'Verificar estado da Poli-Sealer — manutenção ou substituição'
+      ]};
+    }
+
+    // Fallback → reativação com lançamentos
+    return {type:'expansion',icon:'🔵',label:'Reativação + Lançamentos 2025–2026',title:'Cliente inativo → reativar com novidades Policontrol',rat:'Histórico relevante sem compras recentes. 7 lançamentos em 2025–2026 são a oportunidade perfeita para retomar o contato.',bullets:[
+      isETA?'🆕 SCM Monitor Coagulantes — automação de ETA, reduz até 37% custo com coagulante':'🆕 ColiControl24 + Leitora MPN — análise de coliformes modernizada',
+      isETA?'🆕 Monitor Online de Cloro — dosagem automática com reagentes nacionais':'🆕 DQO em cubetas nacional — pré-pronto, seguro, resultado em 15 min',
+      isETA?'🆕 Cor Online — monitoramento automático de cor do manancial':'Novidades Policontrol 2025–2026 para o segmento',
+      'Calibração e manutenção — verificar status dos equipamentos',
+      'Mapear novos parâmetros exigidos pelas normas vigentes'
+    ]};
+  }
+
+const RAW_NC=[["DANIELE NEVES BUENO ZAFRA", "R$ 732.980", "R$ 203.530", "23/10/2024", 14.3, "R$ 56.383", "", "", "pharma", "🔴 Churn", ["M9 LABORATORY TOC ANALYZER", "ECLIPSE ENDOTOXIS  ANALYZER- SIEVERS", "CHECKPOINT PHARMA - I/O MODEL"], "", "❓"],
+["VEOLIA WTS ANALYTICAL INSTRUMENTS INC", "R$ 591.682", "R$ 186.162", "31/05/2024", 19.0, "R$ 32.871", "", "", "pharma", "🔴 Churn", ["SERVICO DE MANUTENCAO", "TOC, REAGENT, 300ML, OXIDIZER CARTRIDGE, POLICONTROL BRAZIL", "TOC, REAGENT, 300ML, ACID CARTRIDGE, POLICONTROL BRAZIL"], "", "❓"],
+["REVAL IND. E COM. DE EQUIP ELETR LTDA", "R$ 474.640", "R$ 474.640", "10/12/2024", 12.7, "R$ 16.951", "", "", "lab", "🔴 Churn", ["PCI MODELO AP2000 WT MONTADA", "PCI PARA PHMETRO AQUAPRO", "PCI MODELO WT GEOTECH MONTADA"], "", "❓"],
+["ELLEN FAUSTINO RIBEIRO", "R$ 376.770", "R$ 308.000", "27/06/2025", 6.1, "R$ 41.863", "", "", "pharma", "⚠️ Risco", ["ECLIPSE ENDOTOXIS  ANALYZER- SIEVERS", "M9 LABORATORY TOC ANALYZER", "ANALISADOR AUTOMATICO DE DQO E DBO DE BANCADA FX. 0,7 A 15000MG/L-MANTECH PECOD"], "", "❓"],
+["CENTRO NACIONAL DE TECNOLOGIA ELETRONICA AVANCADA S.A", "R$ 275.081", "R$ 1.100", "24/04/2025", 8.2, "R$ 27.508", "", "", "lab", "⚠️ Risco", ["500RL ETHERNET SYSTEM BOARD KIT", "500RL TFT DISPLAY REPLACEMENT KIT", "500 SINGLE PT CAL A/VER SET KIT"], "", "❓"],
+["MINISTERIO DA SAUDE", "R$ 186.645", "R$ 128.199", "11/11/2024", 13.6, "R$ 7.178", "", "", "pharma", "🔴 Churn", ["PASTILHA CLORO LIVRE DPD 1 CAIXA 100 PASTILHAS", "PASTILHA CLORO DPD 1 CAIXA COM 1000 PASTILHAS", "FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67 COM BATERIA 9V"], "", "❓"],
+["CETRO SOLUCOES EM EMBALAGENS EIRELI", "R$ 179.980", "R$ 179.980", "08/08/2024", 16.8, "R$ 89.990", "", "", "lab", "🔴 Churn", ["EMPACOTADORA AUTOMATICA DE SADCHES 4 SOLDAS CAPM 50 AS VA"], "", "❓"],
+["QUEST COMERCIO E SERVICOS PARA SANEAMENTO LTDA", "R$ 138.339", "R$ 36.525", "10/06/2024", 18.7, "R$ 4.192", "", "", "pharma", "🔴 Churn", ["TURBIDIMETRO AP2000 IR IP 67", "FOTOCOLORIMETRO AQUACOLOR CLORO IP 67", "KIT VISODISC CLORO DPD SEM PRISMA"], "", "❓"],
+["FELIPE DIAS KOGACHI", "R$ 114.000", "R$ 55.100", "05/03/2024", 21.9, "R$ 11.400", "", "", "saneamento", "🔴 Churn", ["MPN READER ANALISADOR AUTOMATICO DE COLIFORMES E E.COLI", "AQUAPRO PH IP54 - POLICONTROL", "ANALISADOR DE COR 450 C SISTEMA DE LIMPEZA E VALVULA ANTI-BOLHAS - POLICONTROL"], "", "❓"],
+["COMPANHIA DE SANEAMENTO MUNICIPAL - CESAMA", "R$ 113.761", "R$ 47.505", "22/10/2024", 14.3, "R$ 4.550", "", "", "pharma", "🔴 Churn", ["KIT REAGENTE DPD CLORO LIVRE POLICONTROL 600 TESTES", "FOTOCOLORIMETRO AQUACOLOR CLORO FE IP 67", "FOTOCOLORIMETRO AQUACOLOR CLORO IP 67"], "", "❓"],
+["VERTRAUT COMPONENTES ELETRONICOS LTDA", "R$ 104.132", "R$ 24.132", "23/08/2024", 16.3, "R$ 9.466", "", "", "lab", "🔴 Churn", ["PCI MODELO AP2000 WT MONTADA", "PCI MODELO COR SO", "PCI MODELO CLORO E FLUOR"], "", "❓"],
+["RODRIGO DE CASTRO ROCHA DA COSTA", "R$ 100.020", "R$ 100.000", "02/02/2024", 22.9, "R$ 33.340", "", "", "pharma", "🔴 Churn", ["M9 LABORATORY TOC ANALYZER", "OXIDIZER CARTRIDGE", "900 SAMPLE PUMP TUBING"], "", "❓"],
+["AB MOLI TRADE E SERVICE LTD", "R$ 94.795", "R$ 23.977", "10/09/2024", 15.7, "R$ 6.771", "", "", "saneamento", "🔴 Churn", ["MPN READER ANALISADOR AUTOMATICO DE COLIFORMES E E.COLI", "CUBETA PADRAO TURBIDEZ MENOR DE 0.10 NTU", "TURBIDIMETRO AP2000 WT IP 67 PAINEL EM INGLES"], "", "❓"],
+["SERVICO DE AGUA E ESGOTO DO ESTADO DO ACRE - SANEACRE", "R$ 90.293", "R$ 0", "30/08/2023", 28.1, "R$ 30.097", "", "", "pharma", "🔴 Churn", ["FLOCCONTROL III DIGITAL 6 PROVAS 10 A 600 RPM LED JARTEST", "TURBIDIMETRO AP 2000 WT IP 67", "FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67"], "", "❓"],
+["EMPRESA MUNICIPAL DE AGUA E SANEAMENTO DE BALNEARIO CAMBORIU", "R$ 70.606", "R$ 49.717", "11/04/2025", 8.7, "R$ 1.103", "", "", "saneamento", "⚠️ Risco", ["FLOCCONTROL III DIGITAL 6 PROVAS 10 A 600 RPM C/ ILUMINACAO LED  JAR TEST", "SISTEMA DE FILTRACAO PARA FLOCCONTROL", "MANUTENCAO LINHA POLICONTROL E LAMOTTE"], "", "❓"],
+["TAYNA HADDAD", "R$ 64.210", "R$ 64.210", "26/08/2024", 16.2, "R$ 4.013", "", "", "pharma", "🔴 Churn", ["CHECKPOINT PHARMA - I/O MODEL", "FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67", "TURBIDIMETRO AP2000 IR IP 67"], "", "❓"],
+["T C SERVICOS DE CONSTRUCOES LTDA", "R$ 63.000", "R$ 63.000", "31/01/2024", 23.0, "R$ 15.750", "", "", "saneamento", "🔴 Churn", ["ANALISADOR DE COR 450 C SISTEMA DE LIMPEZA E VALVULA ANTI-BOLHAS - POLICONTROL", "TURBIDIMETRO ONLINE TURBTRACK WT 0 001 A 1000 NTU", "CONTROLADOR MULTIPARAMETRO DSNET"], "", "❓"],
+["AGILENT TECHNOLOGIES BRASIL LTDA", "R$ 58.092", "R$ 48.027", "19/04/2024", 20.4, "R$ 19.364", "", "", "lab", "🔴 Churn", ["SERVICO DE MANUTENCAO PREVENTIVA", "SERVICO DE MANUTENCAO CORRETIVA"], "", "❓"],
+["SPRINT WOLDWIDE FREIGHT LLC", "R$ 42.570", "R$ 0", "01/08/2023", 29.0, "R$ 1.773", "", "", "pharma", "🔴 Churn", ["COLORIMETRO COLOR MULTI I IP 67 PAINEL EM RUSSO", "TURBIDIMETRO AP2000 IR IP 67 PAINEL EM RUSSO", "FOTOCOLORIMETRO AQUACOLOR FLUOR IP 67 PAINEL EM RUSSO"], "", "❓"],
+["COMPANHIA OPERACIONAL DE DESENVOLVIMENTO SANEAMENTO CODAU", "R$ 39.636", "R$ 11.040", "24/09/2024", 15.2, "R$ 2.831", "", "", "saneamento", "🔴 Churn", ["REAGENTE DE DQO EM CUBETAS FAIXA 20 A 1.500 MG/L 25 UN COM MERCURIO. POLICONTROL", "POLITRAY-E CARTELAS PLASTICAS ESTERIL P/A MPN C/ 97 POCOS (10 UNIDADES)", "REAG DQO CUBETAS"], "", "❓"],
+["COMPANHIA OPERACIONAL DE DESENVOLVIMENTO E SANEAMENTO - CODAU", "R$ 39.636", "R$ 11.040", "24/09/2024", 15.2, "R$ 2.831", "🔴 Churn", "saneamento", ["REAGENTE DE DQO EM CUBETAS 20 A 1500 MG/L", "POLITRAY-E CARTELAS PLASTICAS ESTERIL P/A MPN 97 POCOS", "REAG DQO CUBETAS 0.7 A 40 MG/L"], "", [], "", "❓"],
+["CARDOSO CONSTRUCOES LTDA", "R$ 38.000", "R$ 38.000", "06/09/2024", 15.8, "R$ 19.000", "", "", "saneamento", "🔴 Churn", ["TURBIDIMETRO ONLINE TURBTRACK WT 0 001 A 1000 NTU", "REGULADOR DE PRESSAO"], "", "❓"],
+["LUNELLI INDUSTRIA DO VESTUARIO LTDA.", "R$ 32.421", "R$ 32.421", "05/07/2024", 17.9, "R$ 16.210", "", "", "saneamento", "🔴 Churn", ["ANALISADOR DE COR 450 C SISTEMA DE LIMPEZA E VALVULA ANTI-BOLHAS - POLICONTROL", "KIT DE PADROES PARA A CALIBRACAO DO COR 450"], "", "❓"],
+["CONCEPT ATELIER GMBH", "R$ 31.338", "R$ 0", "19/02/2025", 10.3, "R$ 7.834", "", "", "pharma", "⚠️ Risco", ["MPN READER ANALISADOR AUTOMATICO DE COLIFORMES E E.COLI DEMONSTRACAO", "FOTOCOLORIMETRO AQUACOLOR CLORO IP 67 INGLES", "TURBIDIMETRO AP2000 IR IP 67 PAINEL EM INGLES"], "", "❓"],
+["ANTONIO L FERRREIRA SA COM E IMP", "R$ 26.192", "R$ 26.192", "28/03/2024", 21.1, "R$ 13.096", "", "", "lab", "🔴 Churn", ["MOTOR ELETRICO PARABRISA"], "", "❓"],
+["ASSOCIACAO RESIDENCIAL FIGUEIRA - AREFI", "R$ 23.700", "R$ 11.850", "15/01/2024", 23.5, "R$ 2.370", "", "", "pharma", "🔴 Churn", ["TURBIDIMETRO AP2000 IR IP 67", "FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67", "FOTOCOLORIMETRO AQUACOLOR FLUOR IP 67"], "", "❓"],
+["INSOLLO OPERACAO DE SISTEMA DE SANEAMENTO LTDA", "R$ 22.455", "R$ 22.455", "27/11/2024", 13.1, "R$ 2.495", "", "", "pharma", "🔴 Churn", ["TURBIDIMETRO AP2000 IR IP 67", "FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67", "CALIBRACAO DE EQUIPAMENTO COM CERTIFICADO RASTREAVEL A RBC"], "", "❓"],
+["AGUAS E ESGOTOS DO PIAUI SA", "R$ 21.850", "R$ 0", "28/06/2023", 30.1, "R$ 10.925", "", "", "saneamento", "🔴 Churn", ["TURBIDIMETRO AP 2000 WT IP 67"], "", "❓"],
+["ACM INSTRUMENTOS PARA MEDICOES E CONTROLES LTDA", "R$ 21.000", "R$ 21.000", "14/05/2024", 19.6, "R$ 21.000", "", "", "lab", "🔴 Churn", ["KIT VISODISC CLORO DPD SEM PRISMA ESCALA CONTINUA 0 0 A 3 5 MG L"], "", "❓"],
+["CENTRO DE INTENDENCIA TECNOLOGICO DA MARINHA EM SAO PAULO", "R$ 18.660", "R$ 5.900", "22/05/2024", 19.3, "R$ 6.220", "", "", "saneamento", "🔴 Churn", ["FLOCCONTROL IV DIGITAL 6 PROVAS 10 A 300 RPM LED JARTEST"], "", "❓"],
+["HME CONSULTORIA SERVICOS E COMERCIO LTDA", "R$ 17.720", "R$ 0", "27/02/2023", 34.1, "R$ 3.544", "", "", "pharma", "🔴 Churn", ["FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67", "TURBIDIMETRO AP2000 IR IP 67", "FOTOCOLORIMETRO AQUACOLOR FLUOR IP 67"], "", "❓"],
+["AGUAS DE PORTO ESPERIDIAO SANEAMENTO LTDA", "R$ 17.542", "R$ 0", "18/06/2025", 6.4, "R$ 1.949", "", "", "pharma", "⚠️ Risco", ["FLOCCONTROL IV DIGITAL 3 PROVAS 10 A 300RPM JAR TEST", "FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67", "TURBIDIMETRO AP2000 IR IP 67"], "", "❓"],
+["AGUAS DE SANTA CARMEM S.A.", "R$ 17.420", "R$ 8.500", "30/09/2024", 15.0, "R$ 4.355", "", "", "pharma", "🔴 Churn", ["FOTOCOLORIMETRO AQUACOLOR COR RGB IP 67", "FOTOCOLORIMETRO AQUACOLOR FLUOR IP 67", "TURBIDIMETRO AP2000 IR IP 67"], "", "❓"],
+["A & D CONSULTORIA AMBIENTAL LTDA", "R$ 17.128", "R$ 17.128", "03/10/2024", 14.9, "R$ 2.854", "", "", "saneamento", "🔴 Churn", ["TURBIDIMETRO AP 2000 WT IP 67", "TURBIDIMETRO GEOTECH WT IP67", "MANUTENCAO LINHA POLICONTROL E LAMOTTE"], "", "❓"],
+["EMPREENDIMENTOS ALLMED CLYHOSP ASSISTENCIA TECNICA LTDA", "R$ 16.950", "R$ 16.648", "14/05/2024", 19.6, "R$ 2.825", "", "", "pharma", "🔴 Churn", ["FOTOCOLORIMETRO AQUACOLOR COR RGB GABINETE DESCONTINUADO", "CONJUNTO DE CUBETAS PADRAO PARA O AQUACOLOR COR", "CALIBRACAO DE EQUIPAMENTO COM CERTIFICADO RASTREAVEL A RBC"], "", "❓"],
+["EMPRESA DE PESQUISA AGROPECUARIA DE MINAS GERAIS - EPAMIG", "R$ 13.800", "R$ 13.800", "17/09/2024", 15.4, "R$ 6.900", "", "", "saneamento", "🔴 Churn", ["FLOCCONTROL III DIGITAL 6 PROVAS 10 A 600 RPM LED JARTEST"], "", "❓"],
+["PLANTEC P.T.A. LTDA", "R$ 12.339", "R$ 0", "20/02/2025", 10.3, "R$ 1.762", "", "", "saneamento", "⚠️ Risco", ["COLORIMETRO NESSLERQUANTI 200", "TURBIDIMETRO AP2000 IR IP 67", "MANUTENCAO LINHA POLICONTROL E LAMOTTE"], "", "❓"],
+["SOCIEDADE CAMPINEIRA DE EDUCACAO E INSTRUCAO", "R$ 12.289", "R$ 12.289", "28/03/2024", 21.1, "R$ 12.289", "", "", "saneamento", "🔴 Churn", ["FLOCCONTROL II"], "", "❓"],
+["FISCHER S/A - AGROINDUSTRIA", "R$ 11.708", "R$ 0", "02/06/2025", 7.0, "R$ 5.854", "", "", "saneamento", "⚠️ Risco", ["FLOCCONTROL II", "CALIBRACAO DE EQUIPAMENTO COM CERTIFICADO RASTREAVEL A RBC"], "", "❓"],
+["NICOLE DEVINE", "R$ 11.504", "R$ 1.236", "24/03/2025", 9.3, "R$ 1.278", "", "", "pharma", "⚠️ Risco", ["FOTOCOLORIMETRO AQUACOLOR CLORO IP 67 INGLES", "TURBIDIMETRO AP2000 IR IP 67 PAINEL EM INGLES", "FOTOCOLORIMETRO AQUACOLOR FLUOR IP 67 INGLES"], "", "❓"],
+["CENTRAIS ELETRICAS BRASILEIRAS SA ELETROBRAS", "R$ 10.980", "R$ 10.980", "29/08/2024", 16.1, "R$ 10.980", "", "", "saneamento", "🔴 Churn", ["FLOCCONTROL III DIGITAL 6 PROVAS 10 A 600 RPM JAR TEST"], "", "❓"],
+["TECHNIQUES SURFACES DO BRASIL LTDA", "R$ 10.954", "R$ 8.954", "05/09/2024", 15.8, "R$ 2.738", "", "", "lab", "🔴 Churn", ["BLOCO DE ALUMINIO 120 X 120 X 65MM", "CHAPA DE ALUMINIO 2 X 150 X 150 MM", "PAINEL DE ALUMINIO PARA BLOCO DQO"], "", "❓"],
+["GHS INDUSTRIA E SERVICOS LTDA", "R$ 10.581", "R$ 0", "01/11/2023", 26.0, "R$ 5.290", "", "", "lab", "🔴 Churn", ["BLOCO DIGESTOR THERMO DIGEST PARA DQO COM CUBETAS 25 PROVAS", "MANUTENCAO LINHA POLICONTROL E LAMOTTE"], "", "❓"],
+["J.M. SARLO - EPP", "R$ 10.500", "R$ 10.500", "19/09/2024", 15.4, "R$ 10.500", "", "", "lab", "🔴 Churn", ["SMART SPECTRO 2 ESPECTROFOTOMETRO COMPRIMENTO DE ONDA 350 A 1000 NM LAMOTTE"], "", "❓"],
+["ULTRAPAR PARTICIPACOES S/A", "R$ 9.893", "R$ 4.463", "09/05/2025", 7.8, "R$ 1.413", "", "", "pharma", "⚠️ Risco", ["FOTOCOLORIMETRO AQUACOLOR CLORO IP 67", "CALIBRACAO CURVA CLORO DPD 0 A 5 MG L", "MANUTENCAO LINHA POLICONTROL E LAMOTTE"], "", "❓"],
+["HYSTER-YALE BRASIL EMPILHADEIRAS LTDA", "R$ 8.492", "R$ 0", "16/06/2025", 6.5, "R$ 943", "", "", "pharma", "⚠️ Risco", ["FOTOCOLORIMETRO AQUACOLOR CLORO IP 67", "PH 250 PHMETRO BANCADA", "CALIBRACAO CURVA CLORO DPD"], "", "❓"],
+["EDVALDO JUNIOR DE SOUZA LEMOS", "R$ 8.227", "R$ 0", "21/03/2025", 9.4, "R$ 342", "", "", "lab", "⚠️ Risco", ["CONJUNTO DE REAGENTES SMART CROMO HEXA 100 TESTES", "CONJUNTO DE REAGENTES SMART ZINCO 100 TESTES", "CONJUNTO DE REAGENTES SMART SULFATO 100 TESTES"], "", "❓"],
+["FORTE DISTRIBUICAO E LOGISTICA DO BRASIL LTDA", "R$ 8.178", "R$ 0", "02/06/2025", 7.0, "R$ 681", "", "", "pharma", "⚠️ Risco", ["FOTOCOLORIMETRO AQUACOLOR CLORO IP 67", "CALIBRACAO CURVA CLORO DPD 0 A 5 MG L", "CALIBRACAO CURVA CLORO DPD 0 A10 MG L"], "", "❓"],
+["4W COMUNICACAO LTDA", "R$ 8.080", "R$ 8.080", "17/05/2024", 19.5, "R$ 2.693", "", "", "saneamento", "🔴 Churn", ["ANALISADOR DE COR 450 C SISTEMA DE LIMPEZA E VALVULA ANTI-BOLHAS - POLICONTROL", "TURBIDIMETRO ONLINE TURBTRACK WT", "MEDIDOR DE QUALIDADE DE AGUA MARCA SENTRY"], "", "❓"],
+["GRAULAB BRASIL MATERIAL PARA LABORATORIO S A", "R$ 8.000", "R$ 3.200", "07/03/2024", 21.8, "R$ 1.600", "", "", "saneamento", "🔴 Churn", ["POLITRAY CARTELAS PLASTICAS NAO ESTERILIZADAS P/A MPN", "POLITRAY-E CARTELAS PLASTICAS ESTERIL P/A MPN C/ 97 POCOS (CAIXA COM 100 UNIDADES)"], "", "❓"],
+["CONSTRUTORA VALE VERDE S/A", "R$ 7.859", "R$ 3.920", "31/01/2025", 11.0, "R$ 2.619", "", "", "saneamento", "⚠️ Risco", ["TURBIDIMETRO AP 2000 WT IP 67", "CALIBRACAO DE EQUIPAMENTO COM CERTIFICADO RASTREAVEL A RBC"], "", "❓"],
+["LAGAR H AGROINDUSTRIA LTDA", "R$ 7.800", "R$ 0", "22/11/2023", 25.3, "R$ 3.900", "", "", "saneamento", "🔴 Churn", ["TURBIDIMETRO AP 2000 WT IP 67"], "", "❓"],
+["FUNDACAO DOM AGUIRRE", "R$ 7.739", "R$ 610", "13/02/2025", 10.5, "R$ 773", "", "", "saneamento", "⚠️ Risco", ["TURBIDIMETRO AP 2000 WT IP 67", "REAGENTE CLS2  10 ML", "REAGENTE CLS1  25 ML"], "", "❓"],
+["SERVICO AUTONOMO DE AGUA ESGOTO E MEIO AMBIENTE DE SERTAOZINHO - SAEMAS", "R$ 7.296", "R$ 7.296", "18/10/2024", 14.4, "R$ 2.432", "", "", "lab", "🔴 Churn", ["REAG. CLORO DPD LIVRE UNIDADE", "REAGENTE FLSP H SPADNS 250 TESTES  500 ML"], "", "❓"],
+["SERVICO MUNICIPAL DE SANEAMENTO BASICO", "R$ 7.100", "R$ 7.100", "31/01/2024", 23.0, "R$ 2.366", "", "", "saneamento", "🔴 Churn", ["REAG. DQO C/ MERCURIO FX 3 A 150 PPM CUBETAS", "REAG. FERRO TOTAL P.PILLOWS", "REAG. CLORO DPD LIVRE P.PILLOWS"], "", "❓"],
+["CORE & MAIN", "R$ 7.098", "R$ 6.668", "25/06/2025", 6.2, "R$ 591", "", "", "saneamento", "⚠️ Risco", ["POLI-SEALER SELADORARA PARA CARTELAS MPN", "MPN READER ANALISADOR AUTOMATICO DE COLIFORMES E E.COLI", "KIT COLIFORMES FLACONETE SUBSTRATO CROMOGENICO COLICONTROL"], "", "❓"],
+["AKAVO QUIMICA COMERCIAL LTDA", "R$ 6.905", "R$ 6.905", "18/12/2024", 12.4, "R$ 1.381", "", "", "lab", "🔴 Churn", ["KIT COLIFORMES FLACONETE SUBSTRATO CROMOGENICO COLICONTROL 100"], "", "❓"],
+["ANA CLAUDIA VAZ DE ARAUJO", "R$ 6.900", "R$ 6.900", "10/12/2024", 12.7, "R$ 6.900", "", "", "saneamento", "🔴 Churn", ["FLOCCONTROL III DIGITAL 6 PROVAS 10 A 600 RPM C/ ILUMINACAO LED  JAR TEST"], "", "❓"],
+["DOSIM SLU", "R$ 6.758", "R$ 0", "16/04/2025", 8.5, "R$ 2.252", "", "", "pharma", "⚠️ Risco", ["TURBIDIMETRO AP2000 IR IP 67 ESPANHOL", "FOTOCOLORIMETRO AQUACOLOR CLORO IP 67 ESPANHOL", "REAG. CLORO DPD LIVRE P.PILLOWS"], "", "❓"],
+["WEBCOR S.A.", "R$ 6.521", "R$ 6.521", "28/11/2024", 13.1, "R$ 3.260", "", "", "pharma", "🔴 Churn", ["TURBIDIMETRO AP 2000 WT DISPLAY RETROILUMINADO IP 67", "FOTOCOLORIMETRO AQUACOLOR CLORO IP 67"], "", "❓"],
+["USINA ALTA MOGIANA S/A-ACUCAR E ALCOOL", "R$ 6.076", "R$ 0", "02/06/2025", 7.0, "R$ 3.038", "", "", "saneamento", "⚠️ Risco", ["FLOCCONTROL DIGITAL 6 PROVAS 10 A 300 RPM", "CALIBRACAO DE EQUIPAMENTO COM CERTIFICADO RASTREAVEL A RBC"], "", "❓"],
+["CERVEJARIA PETROPOLIS S/A", "R$ 5.571", "R$ 5.571", "11/07/2024", 17.7, "R$ 5.571", "", "", "saneamento", "🔴 Churn", ["FLOCCONTROL IV DIGITAL 3 PROVAS 10 A 300RPM JAR TEST"], "", "❓"],
+["VS - VITAL SYSTEMS LTDA", "R$ 5.500", "R$ 0", "25/06/2025", 6.2, "R$ 5.500", "", "", "saneamento", "⚠️ Risco", ["TURBIDIMETRO AP 2000 WT IP 67"], "", "❓"],
+["A. W. QUIMICA & ENGENHARIA LTDA", "R$ 5.500", "R$ 5.500", "14/06/2024", 18.6, "R$ 5.500", "", "", "lab", "🔴 Churn", ["BLOCO DIGESTOR THERMO DIGEST PARA DQO COM CUBETAS 25 PROVAS"], "", "❓"],
+["FAGOR EDERLAN BRASILEIRA AUTO PECAS LTDA.", "R$ 5.466", "R$ 0", "29/01/2025", 11.0, "R$ 2.733", "", "", "saneamento", "⚠️ Risco", ["TURBIDIMETRO AP 2000 WT IP 67", "CALIBRACAO DE EQUIPAMENTO COM CERTIFICADO RASTREAVEL A RBC"], "", "❓"],
+["NOTRE DAME INTERMEDICA SAUDE S.A.", "R$ 5.326", "R$ 0", "18/06/2025", 6.4, "R$ 1.775", "", "", "pharma", "⚠️ Risco", ["MANUTENCAO LINHA POLICONTROL E LAMOTTE", "CALIBRACAO CURVA CLORO DPD 0 A 5 MG L", "FOTOCOLORIMETRO AQUACOLOR CLORO E PH IP 67"], "", "❓"],
+["IBITIUVA BIOENERGETICA S.A.", "R$ 5.250", "R$ 0", "14/03/2025", 9.6, "R$ 2.625", "", "", "saneamento", "⚠️ Risco", ["TURBIDIMETRO AP2000 IR IP 67", "TURBIDIMETRO AP2000 IR GABINETE DESCONTINUADO"], "", "❓"],
+["FUNDACAO DA UNIVERSIDADE FEDERAL DO PARANA - FUNPAR", "R$ 4.088", "R$ 4.088", "11/11/2024", 13.6, "R$ 2.044", "", "", "saneamento", "🔴 Churn", ["POLITRAY-E CARTELAS PLASTICAS ESTERIL P/A MPN C/ 97 POCOS (100 UNIDADES)", "KIT COLIFORMES FLACONETE SUBSTRATO CROMOGENICO COLICONTROL 100"], "", "❓"]];
+
+const clients=[
+  ...RAW.map(r=>({name:r[0],ltv:r[1],fat24:r[2],lastOrder:r[3],months:r[4],ticket:r[5],contacts:r[6],emails:r[7],segment:r[8],status:r[9],products:r[10],phone:r[11]||'',responsavel:r[12]||'',noContact:false})),
+  ...RAW_NC.map(r=>({name:r[0],ltv:r[1],fat24:r[2],lastOrder:r[3],months:r[4],ticket:r[5],contacts:'❓ Sem contato no Pipedrive',emails:'',segment:r[7],status:r[6],products:r[8],noContact:true}))
+];
+
+document.getElementById('totalCount').textContent = clients.length;
+
+// ─── STATE ───────────────────────────────────────────────────────────────────────
+let activeFilter='all', current=null, pitchText='';
+
+const STRAT_COLORS={vials:'#a78bfa',manut:'#fb923c',consumo:'#4ade80',expansion:'#60a5fa',micro:'#2dd4bf'};
+const STRAT_BG={vials:'rgba(167,139,250,.06)',manut:'rgba(251,146,60,.06)',consumo:'rgba(74,222,128,.06)',expansion:'rgba(96,165,250,.06)',micro:'rgba(45,212,191,.06)'};
+const STRAT_BC={vials:'rgba(167,139,250,.25)',manut:'rgba(251,146,60,.25)',consumo:'rgba(74,222,128,.25)',expansion:'rgba(96,165,250,.25)',micro:'rgba(45,212,191,.25)'};
+const SEG_CLS={saneamento:'seg-san',pharma:'seg-pha',lab:'seg-lab'};
+const SEG_LBL={saneamento:'Saneam.',pharma:'Farmac.',lab:'Lab'};
+
+function setFilter(f,btn){
+  activeFilter=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+
+function render(){
+  const q=document.getElementById('srch').value.toLowerCase();
+  const list=clients.filter(c=>{
+    const mSeg=activeFilter==='all'?true:activeFilter==='nocontact'?c.noContact:(c.segment===activeFilter&&!c.noContact);
+    return mSeg&&c.name.toLowerCase().includes(q);
+  });
+  document.getElementById('sbCount').textContent=list.length+' clientes';
+  document.getElementById('cList').innerHTML=list.map((c,i)=>{
+    const s=strategy(c);
+    const idx=clients.indexOf(c);
+    const isOn=current===c;
+    return `<div class="ci${isOn?' on':''}" onclick="select(${idx})">
+      <div class="ci-name">${c.name}</div>
+      <div class="ci-meta">
+        <span class="ltv">${c.ltv}</span>
+        <span class="seg ${SEG_CLS[c.segment]}">${SEG_LBL[c.segment]}</span>
+        <span title="${s.label}">${s.icon}</span>
+        <span style="font-size:10px;color:${c.status.includes('Churn')?'#f43f5e':'#f59e0b'}">${c.status}</span>
+        ${c.noContact?'<span class="nc-badge">❓</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function select(idx){
+  current=clients[idx];
+  pitchText='';
+  render();
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('detail').style.display='block';
+
+  const s=strategy(current);
+  const showMicro=s.type!=='micro'&&hasMicroPot(current.products)&&!hasMicroAlr(current.products)&&current.segment!=='pharma';
+  const isChurn=current.status.includes('Churn');
+
+  const stratBullets=s.bullets.map(b=>`<div class="bullet">${b}</div>`).join('');
+
+  const microBox=showMicro?`<div class="strat-card micro">
+    <div class="strat-label">🧫 Cross-sell Microbiologia</div>
+    <div class="strat-title">Histórico físico-químico → potencial para microbiologia</div>
+    <div class="strat-rat">Exigência Portaria MS 888/2021. MPN Reader + Politray: resultado &lt;24h, menor custo/ensaio vs. método tradicional.</div>
+    <div class="bullet">MPN Reader — coliformes/E.coli automático em &lt;24h</div>
+    <div class="bullet">Politray-E Cartelas Estéreis 97 poços — consumível mensal recorrente</div>
+    <div class="bullet">ColiControl 100 em flaconete (ONPG/MUG)</div>
+    <div class="bullet">Poli-Sealer — seladora exclusiva PoliControl</div>
+  </div>`:'';
+
+  const phoneRow=current.phone?`<div class="cr-row" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07)"><span style="font-size:11px;color:#94a3b8">📞</span><span class="cr-name" style="color:#a3e635">${current.phone}</span></div>`:'';
+  const respRow=current.responsavel&&current.responsavel!=='Vendas'?`<div class="cr-row"><span style="font-size:11px;color:#94a3b8">🏷️ Resp. interno:</span><span class="cr-name" style="color:#c4b5fd">${current.responsavel}</span></div>`:'';
+  const ctBox=current.noContact?`<div class="nc-alert">
+    <div class="nc-alert-title">❓ Sem contato no Pipedrive</div>
+    <div class="nc-alert-body">Prospectar via <b style="color:#c4b5fd">LinkedIn, site ou ligação</b> antes de enviar o email.</div>
+  </div>`:[...current.contacts.split(' | ').slice(0,4).map((n,i)=>{
+    const em=current.emails.split('|')[i]||'';
+    return `<div class="cr-row"><span class="cr-name">${n}</span>${em?`<span class="cr-email">— ${em}</span>`:''}</div>`;
+  }),phoneRow,respRow].join('');
+
+  document.getElementById('detail').innerHTML=`
+  <div class="dbody">
+    <div class="dh-card">
+      <div class="dh-status" style="color:${isChurn?'#f43f5e':'#f59e0b'}">
+        <span class="status-dot" style="background:${isChurn?'#f43f5e':'#f59e0b'}"></span>
+        ${current.status.replace('🔴 ','').replace('⚠️ ','')}
+      </div>
+      <div class="dh-name">${current.name}</div>
+      <div class="stats-row">
+        ${[['LTV Total',current.ltv,'#f59e0b'],['Fat. 2024',current.fat24,'#e2e8f0'],['Último Pedido',current.lastOrder,'#f43f5e'],['Meses s/ comprar',current.months+'m','#f43f5e'],['Ticket Médio',current.ticket,'#60a5fa']].map(([l,v,c])=>`
+        <div class="stat-item"><div class="lbl">${l}</div><div class="val" style="color:${c}">${v}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🛒 Histórico · Top 3 Produtos</div>
+      ${current.products.map(p=>`<div class="prod-chip">📦 ${p}</div>`).join('')}
+    </div>
+    <div class="strat-card ${s.type}" style="border-color:${STRAT_BC[s.type]};background:${STRAT_BG[s.type]}">
+      <div class="strat-label" style="color:${STRAT_COLORS[s.type]}">${s.icon} ${s.label}</div>
+      <div class="strat-title">${s.title}</div>
+      <div class="strat-rat">${s.rat}</div>
+      ${stratBullets}
+    </div>
+    ${microBox}
+    <div class="card">
+      <div class="card-title">👤 Contatos</div>
+      ${ctBox}
+    </div>
+    <div class="prosp-wrap">
+      <div class="prosp-hdr">
+        <h3>🔍 Prospectar Novos Contatos via IA</h3>
+        <button class="prosp-btn" id="prospBtn" onclick="prospectContacts()">🤖 Buscar Contatos</button>
+      </div>
+      <div class="prosp-body" id="prospBody">
+        <div class="prosp-placeholder" id="prospPlaceholder">Clique em "Buscar Contatos" para pesquisar na internet contatos de laboratório, metrologia, qualidade e compras nesta empresa.</div>
+        <div class="prosp-loading" id="prospLoading">🔍 Pesquisando LinkedIn, site da empresa e outras fontes...</div>
+        <div id="prospResults"></div>
+      </div>
+    </div>
+    <div class="pitch-wrap">
+      <div class="pitch-hdr">
+        <h3>📧 Email de Retomada Personalizado</h3>
+        <button class="gen-btn" id="genBtn" onclick="genPitch()">✦ Gerar com IA</button>
+      </div>
+      <div class="pitch-body">
+        <div class="pitch-placeholder" id="phTxt">Clique em "Gerar com IA" para criar o email personalizado.</div>
+        <div class="dots" id="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="pitch-out" id="pitchOut"></div>
+      </div>
+      <div class="pitch-foot" id="pitchFoot">
+        <button class="act-btn" id="cpyBtn" onclick="copyPitch()">📋 Copiar Email</button>
+        <button class="act-btn" onclick="genPitch()">🔄 Regenerar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+const CONTEXT={
+  vials:`FARMA EXCLUSIVO. LEGISLAÇÃO: RDC 658/2022 (água purificada), USP <643> TOC, USP <645> condutividade, RDC 301/2019 BPF, USP <85> endotoxinas. Vials Sievers <10 ppb (COA USP, cleanroom ISO 9001). DUCT Vials = TOC + condutividade simultâneos. Reutilização de vials = carbon de background = OOS = CAPA. Padrões M9 Cal&Ver rastreáveis USP. Cartuchos Oxidizer/Acid originais — terceiros invalidam validação. NUNCA esses produtos para saneamento/lab.`,
+  manut:`FARMA: peças originais COA, PM anual, Resin Bed, IQ/OQ/PQ, suporte auditoria ANVISA/FDA — RDC 658/2022 e BPF RDC 301/2019. NÃO-FARMA: manutenção Policontrol/Lamotte, calibração RBC rastreável (INMETRO/ABNT NBR ISO/IEC 17025). Sem Sievers/Veolia para saneamento/lab.`,
+  consumo:`Reagentes com validade curta — citar histórico do cliente. LEGISLAÇÃO SANEAMENTO: Portaria GM/MS 888/2021 exige padrões rastreáveis e reagentes válidos para laudos legais. Padrões formazina vencem ~6 meses. NOVIDADES: DQO em cubetas nacional (faixas 20-1500 e 3-150 mg/L, ISO 15705, resultado 15 min, sem ácido, custo menor), ColiControl24 (Portaria 888 exige coliformes/E.coli), Reagente CL17 nacional (alternativa ao Hach CL17 importado). NUNCA Sievers/Veolia para saneamento/lab.`,
+  expansion:`LEGISLAÇÃO ETA: Portaria GM/MS 888/2021 — monitoramento obrigatório de turbidez (ABNT NBR ISO 7027), cor, cloro residual, coliformes. CONAMA 357/2005 — qualidade de mananciais. NOVIDADES ETA: SCM Monitor Coagulantes (reduz até 37% custo coagulante, automação tempo real), Monitor Online de Cloro (reagentes nacionais Policontrol, integração SCADA, conformidade 888/2021), Cor Online (monitoramento contínuo de manancial). LEGISLAÇÃO ETE: CONAMA 430/2011 — padrões de lançamento de efluentes. NOVIDADES ETE: Sentry Monitor DBO (único sensor DBO em tempo real do mundo, bio-eletrodo sem reagentes, CONAMA 430/2011), DQO em cubetas nacional (ISO 15705). LAB: ABNT NBR ISO/IEC 17025 — Leitora MPN automática única do mundo para acreditação. NUNCA Sievers/Veolia para não-pharma.`,
+  micro:`LEGISLAÇÃO: Portaria GM/MS 888/2021 — análise obrigatória de coliformes totais e E.coli em água potável (NMP/100 mL). ABNT NBR ISO/IEC 17025 para labs acreditados exige rastreabilidade de resultados. NOVIDADES: ColiControl24 (meio de cultura pronto, sem preparo manual, incubação 35-37°C 24h, resultado rastreável), Cartela MPN (substitui tubos múltiplos — NMP/100 mL, menos resíduo), Leitora MPN automática (ÚNICA NO MUNDO — elimina leitura visual, laudo auditável, perfeita para acreditação ISO 17025). Pitch: "Ainda fazem tubos múltiplos? Portaria 888 exige rastreabilidade — nossa leitora automática é a única do mundo que emite laudo auditável." Clientes: ETA, Lab terceirizado, Farma, Lab ISO 17025.`,
+  novidades_saneamento:`7 LANÇAMENTOS 2025-2026 POLICONTROL — ancoragem regulatória: 1) ColiControl24+Leitora MPN — Portaria GM/MS 888/2021 obriga coliformes/E.coli rastreáveis; 2) Reagente CL17 nacional — opera no Hach CL17 instalado, custo menor, sem dependência de importação; 3) Cor Online — Portaria 888 limita cor aparente, monitoramento contínuo previne não-conformidade; 4) Monitor Online de Cloro — Portaria 888 exige cloro residual controlado, dosagem automática com reagentes nacionais; 5) SCM Monitor Coagulantes — reduz até 37% custo com coagulante, resposta em tempo real a variações de turbidez/pH (CONAMA 357); 6) Sentry Monitor DBO — CONAMA 430/2011 limita DBO de efluentes, único sensor DBO em tempo real do mundo; 7) DQO em cubetas nacional — ISO 15705 e Standard Methods 5220D, resultado 15 min, fabricado no Brasil.`
+};
+
+async function prospectContacts(){
+  if(!current) return;
+  const btn = document.getElementById('prospBtn');
+  const loading = document.getElementById('prospLoading');
+  const results = document.getElementById('prospResults');
+  const placeholder = document.getElementById('prospPlaceholder');
+
+  btn.disabled = true;
+  btn.textContent = '🔍 Buscando...';
+  loading.style.display = 'block';
+  placeholder.style.display = 'none';
+  results.innerHTML = '';
+
+  const empresa = current.name;
+  const seg = current.segment === 'pharma' ? 'farmacêutica' : current.segment === 'saneamento' ? 'saneamento/tratamento de água' : 'laboratório/indústria';
+
+  const prompt = 'Você é um especialista em prospecção B2B. Pesquise na internet contatos da empresa "' + empresa + '" (segmento: ' + seg + ').\n\n' +
+    'Busque profissionais nas áreas de:\n' +
+    '- Laboratório de controle de qualidade (QC/QA)\n' +
+    '- Metrologia e calibração\n' +
+    '- Automação industrial e instrumentação\n' +
+    '- Gestão de projetos e infraestrutura\n' +
+    '- Compras / suprimentos / procurement\n' +
+    '- Qualidade / QHSE / meio ambiente\n\n' +
+    'Pesquise em: LinkedIn (site:linkedin.com/in), site oficial da empresa, Google, licitações públicas, eventos do setor.\n\n' +
+    'Para cada contato encontrado, informe: nome completo, cargo, email (se público), LinkedIn URL, fonte.\n\n' +
+    'Se não encontrar contatos, sugira como o SDR pode prospectar nesta empresa.\n\n' +
+    'Retorne APENAS um JSON válido no formato:\n' +
+    '{"contatos":[{"nome":"...","cargo":"...","email":"...","linkedin":"...","fonte":"..."}],"dicas":["..."],"resumo":"..."}';
+
+  try {
+    const res = await fetch('https://empty-disk-a816.phcosta2.workers.dev/', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 800,
+        tools: [{"type":"web_search_20250305","name":"web_search"}],
+        messages: [{role:'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+
+    let text = '';
+    if(data.content){
+      for(const block of data.content){
+        if(block.type === 'text') text += block.text;
+      }
+    }
+
+    let parsed = null;
+    try {
+      const m = text.match(/\{[\s\S]*\}/);
+      if(m) parsed = JSON.parse(m[0]);
+    } catch(e){}
+
+    loading.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🔄 Buscar Novamente';
+
+    let out = '';
+    if(parsed && parsed.contatos !== undefined){
+      if(parsed.resumo) out += '<div style="font-size:12px;color:#64748b;margin-bottom:12px;padding:8px 10px;background:#0a1628;border-radius:6px;">' + parsed.resumo + '</div>';
+      if(parsed.contatos.length > 0){
+        parsed.contatos.forEach(function(c){
+          out += '<div class="contact-found">';
+          out += '<div class="cf-name">' + (c.nome||'—') + '</div>';
+          out += '<div class="cf-cargo">' + (c.cargo||'—') + '</div>';
+          out += '<div class="cf-info">';
+          if(c.email) out += '<span>✉️ ' + c.email + '</span>';
+          if(c.linkedin) out += '<a href="' + c.linkedin + '" target="_blank">🔗 LinkedIn</a>';
+          out += '</div>';
+          if(c.fonte) out += '<div class="cf-source">Fonte: ' + c.fonte + '</div>';
+          out += '</div>';
+        });
+      } else {
+        out += '<div class="prosp-placeholder">Nenhum contato encontrado diretamente. Veja as dicas abaixo.</div>';
+      }
+      if(parsed.dicas && parsed.dicas.length > 0){
+        out += '<div style="margin-top:10px;padding:10px 12px;background:#0a1628;border-radius:6px;">';
+        out += '<div style="font-size:11px;font-weight:600;color:#60a5fa;margin-bottom:6px;">💡 Como prospectar</div>';
+        parsed.dicas.forEach(function(d){ out += '<div style="font-size:11.5px;color:#64748b;margin-bottom:4px;">→ ' + d + '</div>'; });
+        out += '</div>';
+      }
+    } else {
+      out += '<div style="font-size:12.5px;color:#94a3b8;white-space:pre-wrap;line-height:1.7;">' + text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+    }
+    out += '<button class="prosp-copy-btn" onclick="copyProspResults()">📋 Copiar resultados</button>';
+    out += '<div class="prosp-disclaimer">Resultados baseados em fontes públicas. Verificar antes de usar.</div>';
+    results.innerHTML = out;
+
+  } catch(err){
+    loading.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🔄 Tentar Novamente';
+    results.innerHTML = '<div style="color:#f43f5e;font-size:12px;">Erro ao buscar contatos. Tente novamente.</div>';
+  }
+}
+
+function copyProspResults(){
+  const el = document.getElementById('prospResults');
+  if(!el) return;
+  navigator.clipboard.writeText(el.innerText).then(function(){
+    const b = el.querySelector('.prosp-copy-btn');
+    if(b){ b.textContent='✅ Copiado!'; setTimeout(function(){b.textContent='📋 Copiar resultados';},2000); }
+  });
+}
+
+async function genPitch(){
+  if(!current) return;
+  const s=strategy(current);
+  const btn=document.getElementById('genBtn');
+  btn.disabled=true; btn.textContent='⏳ Gerando…';
+  document.getElementById('phTxt').style.display='none';
+  document.getElementById('dots').classList.add('on');
+  document.getElementById('pitchOut').classList.remove('on');
+  document.getElementById('pitchOut').innerHTML='';
+  document.getElementById('pitchFoot').classList.remove('on');
+
+  const hasCross=s.type!=='micro'&&hasMicroPot(current.products)&&!hasMicroAlr(current.products)&&current.segment!=='pharma';
+
+  const isPharma = current.segment === 'pharma';
+  const prodList = current.products.slice(0,3).join(' | ');
+  const isETA_client = /SANEAMENTO|COPASA|CESAN|CASAL|CAESB|SABESP|SAAE|COPANOR|AGUAS DE|CASAN|DMAE|DEMAE|SAMAE/.test(current.name.toUpperCase()) || current.segment === 'saneamento';
+  const isETE_client = /INDUSTRIA|FRIGORIFICO|PAPEL|QUIMICA|ALIMENTOS|BEBIDAS|ETE/.test(current.name.toUpperCase());
+  const isLab_client = /LAB|ANALI|AMBIENTAL LTDA/.test(current.name.toUpperCase());
+  const prompt=`Você é Marcos, comercial da PoliControl — Instrumentos Analíticos. Escreva um email de retomada CURTO e DIRETO.
+
+CLIENTE: ${current.name} | Segmento: ${current.segment} | ${current.months} meses sem comprar
+HISTÓRICO DE COMPRAS DO CLIENTE: ${prodList}
+ESTRATÉGIA: ${CONTEXT[s.type]}
+${hasCross?'EXTRA: Mencione em 1 frase o MPN Reader + Politray como complemento (exigência MS 888/2021).':''}
+
+REGRAS ABSOLUTAS:
+- TAMANHO: entre 100 e 140 palavras no corpo (sem assinatura). Nem telegrama nem discurso.
+- Abra direto no ponto — sem "espero que esteja bem", sem "faz um tempo", sem "estou retomando contato"
+- NÃO explique normas como se o cliente não soubesse — apenas cite o número/nome como âncora de autoridade
+- Linguagem de colega de profissão: direto, objetivo, sem floreios
+- ESTRUTURA: 1 frase de abertura com gancho (produto já comprado ou situação do cliente) → 1-2 frases de oferta concreta com benefício claro → 1 âncora regulatória → 1 CTA direto (resposta ou call 15 min)
+- ÂNCORA REGULATÓRIA OBRIGATÓRIA — use a norma correta: ${isPharma ? "Farma: RDC 658/2022 (água purificada), USP <643>/<645>, USP <85> endotoxinas, RDC 301/2019 BPF." : isETA_client ? "Saneamento/ETA: Portaria GM/MS 888/2021 (água potável), ABNT NBR ISO 7027 (turbidez), CONAMA 357/2005." : isETE_client ? "ETE/Indústria: CONAMA 430/2011 (lançamento efluentes), NBR 9800, NT FEAM." : "Lab: ABNT NBR ISO/IEC 17025 (acreditação) ou Portaria GM/MS 888/2021 se análise de água."}
+- Assine: Marcos | PoliControl | (11) 4053-2060
+- PERSONALIZAÇÃO OBRIGATÓRIA: mencione um produto específico que o cliente já comprou, usando algo como "vimos em nosso cadastro que você adquiriu [produto]..." ou "com base no seu histórico com a gente — [produto] —..."
+- FILTRO CRÍTICO: ${isPharma ? 'Cliente PHARMA — pode mencionar Sievers, TOC, vials, cartuchos, Veolia normalmente.' : 'Cliente NÃO é pharma — PROIBIDO mencionar Sievers, Veolia, TOC, vials ou cartuchos. Foque em equipamentos Policontrol, reagentes, calibração RBC e microbiologia.'}
+- LANÇAMENTOS RELEVANTES: ${isETA_client ? 'ETA → mencione 1 lançamento pertinente: SCM Monitor Coagulantes (reduz 37% custo coagulante), Monitor Online de Cloro (reagentes nacionais), Cor Online (detecta variação de manancial), ColiControl24+Leitora MPN (coliformes rastreáveis), ou Reagente CL17 nacional (se tiver Hach CL17).' : isETE_client ? 'ETE/Indústria → mencione: Sentry Monitor DBO (único sensor DBO em tempo real do mundo) ou DQO em cubetas nacional (pré-pronto, resultado 15 min, sem ácido).' : isLab_client ? 'LAB → mencione: ColiControl24+Leitora MPN automática (única no mundo, laudo rastreável, ISO 17025) ou DQO em cubetas nacional.' : 'Mencione 1 novidade relevante ao perfil do cliente se encaixar.'}
+
+FORMATO:
+ASSUNTO: [máx 50 chars]
+
+[corpo]`;
+
+  try{
+    const res=await fetch('https://empty-disk-a816.phcosta2.workers.dev/',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(typeof data.error === "object" ? JSON.stringify(data.error) : data.error);
+    const raw=data.content?.map(i=>i.text||'').join('')||'';
+    pitchText=raw;
+
+    const subjMatch=raw.match(/ASSUNTO:\s*(.+)/i);
+    const body=raw.replace(/ASSUNTO:\s*.+\n*/i,'').trim();
+    const out=document.getElementById('pitchOut');
+    out.innerHTML='';
+    if(subjMatch){
+      out.innerHTML+=`<div class="subj-box"><div class="subj-lbl">📌 Assunto</div><div class="subj-val">${subjMatch[1].trim()}</div></div>`;
+      pitchText=`Assunto: ${subjMatch[1].trim()}\n\n${body}`;
+    }
+    const d=document.createElement('div');
+    d.className='pitch-text'; d.textContent=body;
+    out.appendChild(d);
+    out.classList.add('on');
+    document.getElementById('pitchFoot').classList.add('on');
+  }catch(e){
+    const out=document.getElementById('pitchOut');
+    out.innerHTML=`<div style="color:#f43f5e;font-size:12px">❌ Erro: ${e.message}</div>`;
+    out.classList.add('on');
+  }
+  document.getElementById('dots').classList.remove('on');
+  btn.disabled=false; btn.textContent='✦ Gerar com IA';
+}
+
+async function copyPitch(){
+  if(!pitchText) return;
+  try{ await navigator.clipboard.writeText(pitchText); }catch(e){}
+  const btn=document.getElementById('cpyBtn');
+  btn.textContent='✅ Copiado!'; btn.classList.add('ok');
+  setTimeout(()=>{btn.textContent='📋 Copiar Email';btn.classList.remove('ok');},2200);
+}
+
+render();
+</script>
+</body>
+</html>
